@@ -1,72 +1,87 @@
-# import necessary modules
-
-# for implementing the HTTP Web servers
 import http.server
-
-# provides access to the BSD socket interface
 import socket
-
-# a framework for network servers
 import socketserver
-
-# to display a Web-based documents to users
 import webbrowser
-
-# to generate qrcode
 import pyqrcode
-from pyqrcode import QRCode
-
-# convert into png format
-import png
-
-# to access operating system control
 import os
+import getpass
+import sys
+import threading
 
-
-# assigning the appropriate port value
+# Constants
 PORT = 8010
-# this finds the name of the computer user
-os.environ['USERPROFILE']
 
+def run_server():
+    try:
+        # Get current username
+        username = getpass.getuser()
+        home_path = os.environ.get('USERPROFILE') or os.path.expanduser("~")
 
-# changing the directory to access the files desktop
-# with the help of os module
-desktop = os.path.join(os.path.join(os.environ['USERPROFILE']),
-					'OneDrive')
-os.chdir(desktop)
+        # Verify directory
+        if not os.path.exists(home_path):
+            raise FileNotFoundError(f"Directory not found: {home_path}")
 
+        os.chdir(home_path)
+        print(f"Username: {username}")
+        print(f"[INFO] Serving files from: {home_path}")
 
-# creating a http request
-Handler = http.server.SimpleHTTPRequestHandler
-# returns, host name of the system under
-# which Python interpreter is executed
-hostname = socket.gethostname()
+        # Set up handler
+        Handler = http.server.SimpleHTTPRequestHandler
 
+        # Get local IP
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                ip_address = s.getsockname()[0]
+        except OSError as e:
+            print(f"[ERROR] Could not retrieve IP address: {e}")
+            return
 
-# finding the IP address of the PC
-s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-s.connect(("8.8.8.8", 80))
-IP = "http://" + s.getsockname()[0] + ":" + str(PORT)
-link = IP
+        link = f"http://{ip_address}:{PORT}"
+        print(f"[INFO] Local server link: {link}")
 
+        # Generate QR Code
+        try:
+            qr = pyqrcode.create(link)
+            qr_file = os.path.join(home_path, "myqr.svg")
+            qr.svg(qr_file, scale=8)
+            print(f"[INFO] QR Code saved at: {qr_file}")
+            webbrowser.open(qr_file)
+        except Exception as e:
+            print(f"[ERROR] Could not generate or open QR code: {e}")
 
-# converting the IP address into the form of a QRcode
-# with the help of pyqrcode module
+        # Start server with shutdown support
+        with socketserver.TCPServer(("", PORT), Handler) as httpd:
+            print(f"[INFO] Serving at port {PORT}")
+            print(f"[INFO] Type this in your browser: {link}")
+            print(f"[INFO] Or scan the QR code")
+            print("[INFO] Press 'q' and Enter to quit.\n")
 
-# converts the IP address into a Qrcode
-url = pyqrcode.create(link)
-# saves the Qrcode inform of svg
-url.svg("myqr.svg", scale=8)
-# opens the Qrcode image in the web browser
-webbrowser.open('myqr.svg')
+            # Background thread to watch for 'q'
+            def watch_quit():
+                while True:
+                    if input().strip().lower() == 'q':
+                        print("[INFO] Shutting down server...")
+                        httpd.shutdown()
+                        break
 
+            threading.Thread(target=watch_quit, daemon=True).start()
 
-# Creating the HTTP request and serving the
-# folder in the PORT 8010,and the pyqrcode is generated
+            httpd.serve_forever()
 
-# continuous stream of data between client and server
-with socketserver.TCPServer(("", PORT), Handler) as httpd:
-	print("serving at port", PORT)
-	print("Type this in your Browser", IP)
-	print("or Use the QRCode")
-	httpd.serve_forever()
+    except FileNotFoundError as e:
+        print(f"[ERROR] {e}")
+    except PermissionError:
+        print("[ERROR] Permission denied. Try running with appropriate access rights.")
+    except OSError as e:
+        print(f"[ERROR] OS error: {e}")
+    except KeyboardInterrupt:
+        print("\n[INFO] Server stopped by user.")
+    except Exception as e:
+        print(f"[ERROR] Unexpected error: {e}")
+    finally:
+        sys.exit(0)
+
+# Run it
+if __name__ == "__main__":
+    run_server()
