@@ -68,10 +68,10 @@ Upon successful execution, you will see output similar to the following:
 ```bash
 Username: vishnu
 [INFO] Serving files from: C:\Users\vishnu
-[INFO] Local server link: http://192.168.1.100:8010
+[INFO] Local server link: http://<your ip>:8010
 [INFO] QR Code saved at: C:\Users\vishnu\myqr.svg
 [INFO] Serving at port 8010
-[INFO] Type this in your browser: http://192.168.1.100:8010
+[INFO] Type this in your browser: http://<your ip>:8010
 [INFO] Or scan the QR code
 [INFO] Press 'q' and Enter to quit.
 ```
