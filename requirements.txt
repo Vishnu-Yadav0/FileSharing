@@ -1,2 +1,9 @@
 pypng
 pyqrcode
+png
+getpass
+webbrowser
+http.server
+socket
+socketserver
+threading
